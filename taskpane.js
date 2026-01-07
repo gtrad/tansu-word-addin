@@ -12,6 +12,17 @@ let variables = [];
 let isConnected = false;
 let ws = null;
 
+// Debug logging to visible panel
+function debugLog(msg) {
+    console.log('[Tansu]', msg);
+    const debugEl = document.getElementById('debug-log');
+    if (debugEl) {
+        const time = new Date().toLocaleTimeString();
+        debugEl.innerHTML += `<div>${time}: ${msg}</div>`;
+        debugEl.scrollTop = debugEl.scrollHeight;
+    }
+}
+
 // DOM Elements
 let welcomeContainerEl, mainContainerEl, skipWelcomeBtn;
 let statusEl, statusTextEl, searchEl, variablesListEl, loadingEl, noResultsEl, errorContainerEl, retryBtn;
@@ -123,21 +134,20 @@ function checkConnectionAndLoad() {
     }
 
     try {
-        console.log('[Tansu] Attempting WebSocket connection to:', WS_URL);
+        debugLog('Connecting to ' + WS_URL);
         ws = new WebSocket(WS_URL);
 
         ws.onopen = () => {
-            console.log('[Tansu] WebSocket connected!');
+            debugLog('Connected!');
             isConnected = true;
             markWelcomeShown();
             setStatus('connected', 'Connected to Tansu');
-            // Request variables
             ws.send(JSON.stringify({ type: 'get_variables' }));
         };
 
         ws.onmessage = (event) => {
             try {
-                console.log('[Tansu] Received:', event.data);
+                debugLog('Received: ' + event.data.substring(0, 50) + '...');
                 const data = JSON.parse(event.data);
                 if (data.type === 'variables') {
                     variables = data.variables || [];
@@ -149,18 +159,16 @@ function checkConnectionAndLoad() {
                     }
                 }
             } catch (e) {
-                console.error('[Tansu] Failed to parse WebSocket message:', e);
+                debugLog('Parse error: ' + e.message);
             }
         };
 
         ws.onerror = (error) => {
-            console.error('[Tansu] WebSocket error:', error);
-            console.error('[Tansu] Error type:', error.type);
-            console.error('[Tansu] Error target:', error.target?.url);
+            debugLog('Error: ' + (error.message || 'Connection failed'));
         };
 
         ws.onclose = (event) => {
-            console.log('[Tansu] WebSocket closed. Code:', event.code, 'Reason:', event.reason, 'Clean:', event.wasClean);
+            debugLog('Closed: code=' + event.code + ' clean=' + event.wasClean);
             isConnected = false;
             setStatus('error', 'Not connected');
             showError();
@@ -168,7 +176,7 @@ function checkConnectionAndLoad() {
         };
 
     } catch (error) {
-        console.error('[Tansu] Failed to create WebSocket:', error);
+        debugLog('Exception: ' + error.message);
         isConnected = false;
         setStatus('error', 'Not connected');
         showError();
