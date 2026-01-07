@@ -10,47 +10,92 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Tansu</h1>
-            <p class="subtitle">Variable Tracker</p>
-        </header>
+        <!-- Welcome screen (first run) -->
+        <div id="welcome-container" class="welcome-container" style="display: none;">
+            <header>
+                <img src="assets/icon-64.png" alt="Tansu" class="logo">
+                <h1>Welcome to Tansu</h1>
+                <p class="subtitle">Variable Tracker for Word</p>
+            </header>
 
-        <!-- Status indicator -->
-        <div id="status" class="status status-checking">
-            <span class="status-dot"></span>
-            <span class="status-text">Checking connection...</span>
-        </div>
+            <div class="welcome-content">
+                <p class="welcome-intro">Tansu helps you manage and insert variables into your Word documents. Keep values like prices, dates, and measurements in sync across all your files.</p>
 
-        <!-- Search box -->
-        <div class="search-container">
-            <input type="text" id="search" placeholder="Search variables..." autocomplete="off">
-        </div>
+                <div class="welcome-section">
+                    <h3>How it works</h3>
+                    <ol>
+                        <li>The <strong>Tansu desktop app</strong> stores your variables locally</li>
+                        <li>This add-in connects to the app to display and insert them</li>
+                        <li>Variables stay in sync - update once, update everywhere</li>
+                    </ol>
+                </div>
 
-        <!-- Variables list -->
-        <div id="variables-container">
-            <div id="variables-list" class="variables-list">
-                <!-- Variables will be inserted here -->
+                <div class="welcome-section">
+                    <h3>Why a desktop app?</h3>
+                    <p>Your data stays on your computer - no cloud accounts, no subscriptions, no privacy concerns. The desktop app handles Excel integration and keeps everything synced.</p>
+                </div>
+
+                <div class="welcome-section open-source">
+                    <p>Tansu is <strong>open source</strong> — fully auditable, no hidden data collection</p>
+                    <a href="https://www.tansu.co" target="_blank" class="github-link">Learn more at tansu.co</a>
+                </div>
+
+                <div class="welcome-actions">
+                    <a href="https://github.com/gtrad/Tansu-MVP/releases/latest" target="_blank" class="btn btn-primary btn-large">Download Tansu Desktop</a>
+                    <button id="skip-welcome-btn" class="btn btn-text">I already have it installed</button>
+                </div>
             </div>
-            <div id="no-results" class="no-results" style="display: none;">
-                No variables found
-            </div>
-            <div id="loading" class="loading">
-                Loading variables...
-            </div>
         </div>
 
-        <!-- Error state -->
-        <div id="error-container" class="error-container" style="display: none;">
-            <div class="error-icon">!</div>
-            <h2>Cannot connect to Tansu</h2>
-            <p>Make sure the Tansu desktop app is running.</p>
-            <button id="retry-btn" class="btn btn-primary">Retry</button>
-        </div>
+        <!-- Main app container -->
+        <div id="main-container" style="display: none;">
+            <header>
+                <img src="assets/icon-32.png" alt="Tansu" class="logo-small">
+                <h1>Tansu</h1>
+                <p class="subtitle">Variable Tracker</p>
+            </header>
 
-        <!-- Footer -->
-        <footer>
-            <p>Click a variable to insert it at cursor</p>
-        </footer>
+            <!-- Status indicator -->
+            <div id="status" class="status status-checking">
+                <span class="status-dot"></span>
+                <span class="status-text">Checking connection...</span>
+            </div>
+
+            <!-- Search box -->
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Search variables..." autocomplete="off">
+            </div>
+
+            <!-- Variables list -->
+            <div id="variables-container">
+                <div id="variables-list" class="variables-list">
+                    <!-- Variables will be inserted here -->
+                </div>
+                <div id="no-results" class="no-results" style="display: none;">
+                    No variables found
+                </div>
+                <div id="loading" class="loading">
+                    Loading variables...
+                </div>
+            </div>
+
+            <!-- Error state -->
+            <div id="error-container" class="error-container" style="display: none;">
+                <div class="error-icon">!</div>
+                <h2>Cannot connect to Tansu</h2>
+                <p>Make sure the Tansu desktop app is running.</p>
+                <button id="retry-btn" class="btn btn-primary">Retry</button>
+                <div class="download-section">
+                    <p>Don't have Tansu?</p>
+                    <a href="https://github.com/gtrad/Tansu-MVP/releases/latest" target="_blank" class="btn btn-secondary">Download Tansu</a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer>
+                <p>Click a variable to insert it at cursor</p>
+            </footer>
+        </div>
     </div>
 
     <script src="taskpane.js"></script>

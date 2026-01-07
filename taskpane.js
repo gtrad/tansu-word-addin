@@ -4,12 +4,14 @@
  */
 
 const API_BASE = 'http://127.0.0.1:5050';
+const STORAGE_KEY = 'tansu_welcome_shown';
 
 // State
 let variables = [];
 let isConnected = false;
 
 // DOM Elements
+let welcomeContainerEl, mainContainerEl, skipWelcomeBtn;
 let statusEl, statusTextEl, searchEl, variablesListEl, loadingEl, noResultsEl, errorContainerEl, retryBtn;
 
 /**
@@ -26,6 +28,9 @@ Office.onReady((info) => {
  */
 function initializeAddin() {
     // Get DOM elements
+    welcomeContainerEl = document.getElementById('welcome-container');
+    mainContainerEl = document.getElementById('main-container');
+    skipWelcomeBtn = document.getElementById('skip-welcome-btn');
     statusEl = document.getElementById('status');
     statusTextEl = statusEl.querySelector('.status-text');
     searchEl = document.getElementById('search');
@@ -38,8 +43,63 @@ function initializeAddin() {
     // Set up event listeners
     searchEl.addEventListener('input', handleSearch);
     retryBtn.addEventListener('click', checkConnectionAndLoad);
+    skipWelcomeBtn.addEventListener('click', dismissWelcome);
 
-    // Initial load
+    // Check if first run
+    if (isFirstRun()) {
+        showWelcome();
+    } else {
+        showMainApp();
+    }
+}
+
+/**
+ * Check if this is the first run
+ */
+function isFirstRun() {
+    try {
+        return !localStorage.getItem(STORAGE_KEY);
+    } catch (e) {
+        // localStorage might not be available
+        return false;
+    }
+}
+
+/**
+ * Mark welcome as shown
+ */
+function markWelcomeShown() {
+    try {
+        localStorage.setItem(STORAGE_KEY, 'true');
+    } catch (e) {
+        // Ignore if localStorage not available
+    }
+}
+
+/**
+ * Show welcome screen
+ */
+function showWelcome() {
+    welcomeContainerEl.style.display = 'flex';
+    mainContainerEl.style.display = 'none';
+}
+
+/**
+ * Dismiss welcome and show main app
+ */
+function dismissWelcome() {
+    markWelcomeShown();
+    showMainApp();
+}
+
+/**
+ * Show main app
+ */
+function showMainApp() {
+    welcomeContainerEl.style.display = 'none';
+    mainContainerEl.style.display = 'flex';
+
+    // Start the app
     checkConnectionAndLoad();
 
     // Poll for updates every 5 seconds
@@ -66,6 +126,7 @@ async function checkConnectionAndLoad() {
         }
 
         isConnected = true;
+        markWelcomeShown(); // If connected, they have the app
         setStatus('connected', 'Connected to Tansu');
         await loadVariables();
     } catch (error) {
