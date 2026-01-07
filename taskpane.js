@@ -3,7 +3,12 @@
  * Communicates with Tansu desktop app via localhost API
  */
 
-const API_BASE = 'http://127.0.0.1:5050';
+// Try HTTPS first (for mixed-content compatibility), fall back to HTTP
+const API_ENDPOINTS = [
+    'https://127.0.0.1:5050',
+    'http://127.0.0.1:5050'
+];
+let API_BASE = API_ENDPOINTS[0];
 const STORAGE_KEY = 'tansu_welcome_shown';
 
 // State
@@ -108,32 +113,39 @@ function showMainApp() {
 
 /**
  * Check connection to Tansu and load variables
+ * Tries multiple endpoints (HTTPS first, then HTTP) for compatibility
  */
 async function checkConnectionAndLoad() {
     setStatus('checking', 'Checking connection...');
     showLoading(true);
     hideError();
 
-    try {
-        // Ping the API
-        const response = await fetch(`${API_BASE}/ping`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
+    // Try each endpoint until one works
+    for (const endpoint of API_ENDPOINTS) {
+        try {
+            const response = await fetch(`${endpoint}/ping`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
 
-        if (!response.ok) {
-            throw new Error('Ping failed');
+            if (response.ok) {
+                API_BASE = endpoint;
+                isConnected = true;
+                markWelcomeShown();
+                setStatus('connected', 'Connected to Tansu');
+                await loadVariables();
+                return;
+            }
+        } catch (error) {
+            // Try next endpoint
+            console.log(`Failed to connect to ${endpoint}, trying next...`);
         }
-
-        isConnected = true;
-        markWelcomeShown(); // If connected, they have the app
-        setStatus('connected', 'Connected to Tansu');
-        await loadVariables();
-    } catch (error) {
-        isConnected = false;
-        setStatus('error', 'Not connected');
-        showError();
     }
+
+    // All endpoints failed
+    isConnected = false;
+    setStatus('error', 'Not connected');
+    showError();
 }
 
 /**

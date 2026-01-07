@@ -20,6 +20,8 @@
 
   <!-- AppDomains for localhost communication -->
   <AppDomains>
+    <AppDomain>https://127.0.0.1:5050</AppDomain>
+    <AppDomain>https://localhost:5050</AppDomain>
     <AppDomain>http://127.0.0.1:5050</AppDomain>
     <AppDomain>http://localhost:5050</AppDomain>
   </AppDomains>
