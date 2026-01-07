@@ -3,8 +3,9 @@
  * Communicates with Tansu desktop app via localhost API
  */
 
-// Connect to Tansu desktop app via WebSocket on localhost
-const WS_URL = 'ws://127.0.0.1:5050/ws';
+// Connect to Tansu desktop app via secure WebSocket
+// local.tansu.co resolves to 127.0.0.1 via DNS, with valid SSL cert
+const WS_URL = 'wss://local.tansu.co:5050/ws';
 const STORAGE_KEY = 'tansu_welcome_shown';
 
 // State
