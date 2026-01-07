@@ -30,7 +30,9 @@ let statusEl, statusTextEl, searchEl, variablesListEl, loadingEl, noResultsEl, e
 /**
  * Initialize the add-in when Office is ready
  */
+debugLog('Page loaded, waiting for Office.js...');
 Office.onReady((info) => {
+    debugLog('Office ready: host=' + info.host);
     if (info.host === Office.HostType.Word) {
         initializeAddin();
     }
