@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tansu Variables</title>
+    <link rel="stylesheet" href="taskpane.css">
+    <!-- Office.js library -->
+    <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tansu</h1>
+            <p class="subtitle">Variable Tracker</p>
+        </header>
+
+        <!-- Status indicator -->
+        <div id="status" class="status status-checking">
+            <span class="status-dot"></span>
+            <span class="status-text">Checking connection...</span>
+        </div>
+
+        <!-- Search box -->
+        <div class="search-container">
+            <input type="text" id="search" placeholder="Search variables..." autocomplete="off">
+        </div>
+
+        <!-- Variables list -->
+        <div id="variables-container">
+            <div id="variables-list" class="variables-list">
+                <!-- Variables will be inserted here -->
+            </div>
+            <div id="no-results" class="no-results" style="display: none;">
+                No variables found
+            </div>
+            <div id="loading" class="loading">
+                Loading variables...
+            </div>
+        </div>
+
+        <!-- Error state -->
+        <div id="error-container" class="error-container" style="display: none;">
+            <div class="error-icon">!</div>
+            <h2>Cannot connect to Tansu</h2>
+            <p>Make sure the Tansu desktop app is running.</p>
+            <button id="retry-btn" class="btn btn-primary">Retry</button>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>Click a variable to insert it at cursor</p>
+        </footer>
+    </div>
+
+    <script src="taskpane.js"></script>
+</body>
+</html>
