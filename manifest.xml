@@ -20,7 +20,8 @@
 
   <!-- AppDomains for Tansu desktop app communication -->
   <AppDomains>
-    <AppDomain>https://local.tansu.co:5050</AppDomain>
+    <AppDomain>ws://127.0.0.1:5050</AppDomain>
+    <AppDomain>http://127.0.0.1:5050</AppDomain>
   </AppDomains>
 
   <!-- Host applications -->

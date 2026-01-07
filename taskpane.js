@@ -3,14 +3,14 @@
  * Communicates with Tansu desktop app via localhost API
  */
 
-// Connect to Tansu desktop app via local.tansu.co (resolves to 127.0.0.1)
-// This allows HTTPS communication without mixed-content issues
-const API_BASE = 'https://local.tansu.co:5050';
+// Connect to Tansu desktop app via WebSocket on localhost
+const WS_URL = 'ws://127.0.0.1:5050/ws';
 const STORAGE_KEY = 'tansu_welcome_shown';
 
 // State
 let variables = [];
 let isConnected = false;
+let ws = null;
 
 // DOM Elements
 let welcomeContainerEl, mainContainerEl, skipWelcomeBtn;
@@ -109,89 +109,90 @@ function showMainApp() {
 }
 
 /**
- * Check connection to Tansu and load variables
+ * Check connection to Tansu via WebSocket
  */
-async function checkConnectionAndLoad() {
-    setStatus('checking', 'Checking connection...');
+function checkConnectionAndLoad() {
+    setStatus('checking', 'Connecting...');
     showLoading(true);
     hideError();
 
-    try {
-        const response = await fetch(`${API_BASE}/ping`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
+    // Close existing connection
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
 
-        if (response.ok) {
+    try {
+        console.log('[Tansu] Attempting WebSocket connection to:', WS_URL);
+        ws = new WebSocket(WS_URL);
+
+        ws.onopen = () => {
+            console.log('[Tansu] WebSocket connected!');
             isConnected = true;
             markWelcomeShown();
             setStatus('connected', 'Connected to Tansu');
-            await loadVariables();
-            return;
-        }
+            // Request variables
+            ws.send(JSON.stringify({ type: 'get_variables' }));
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                console.log('[Tansu] Received:', event.data);
+                const data = JSON.parse(event.data);
+                if (data.type === 'variables') {
+                    variables = data.variables || [];
+                    renderVariables(variables);
+                    showLoading(false);
+                } else if (data.type === 'insert_result') {
+                    if (!data.success) {
+                        alert(`Failed to insert variable: ${data.error}`);
+                    }
+                }
+            } catch (e) {
+                console.error('[Tansu] Failed to parse WebSocket message:', e);
+            }
+        };
+
+        ws.onerror = (error) => {
+            console.error('[Tansu] WebSocket error:', error);
+            console.error('[Tansu] Error type:', error.type);
+            console.error('[Tansu] Error target:', error.target?.url);
+        };
+
+        ws.onclose = (event) => {
+            console.log('[Tansu] WebSocket closed. Code:', event.code, 'Reason:', event.reason, 'Clean:', event.wasClean);
+            isConnected = false;
+            setStatus('error', 'Not connected');
+            showError();
+            ws = null;
+        };
+
     } catch (error) {
-        console.log('Failed to connect to Tansu:', error.message || error);
-    }
-
-    // Connection failed
-    isConnected = false;
-    setStatus('error', 'Not connected');
-    showError();
-}
-
-/**
- * Load variables from API
- */
-async function loadVariables() {
-    try {
-        const response = await fetch(`${API_BASE}/variables`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to load variables');
-        }
-
-        const data = await response.json();
-        variables = data.variables || [];
-        renderVariables(variables);
-        showLoading(false);
-    } catch (error) {
-        console.error('Failed to load variables:', error);
+        console.error('[Tansu] Failed to create WebSocket:', error);
+        isConnected = false;
+        setStatus('error', 'Not connected');
         showError();
     }
 }
 
 /**
- * Refresh variables without showing loading state
+ * Load variables via WebSocket
  */
-async function refreshVariables() {
-    if (!isConnected) {
+function loadVariables() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'get_variables' }));
+    }
+}
+
+/**
+ * Refresh variables via WebSocket
+ */
+function refreshVariables() {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
         checkConnectionAndLoad();
         return;
     }
-
-    try {
-        const response = await fetch(`${API_BASE}/variables`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to refresh variables');
-        }
-
-        const data = await response.json();
-        variables = data.variables || [];
-
-        // Re-render with current search filter
-        handleSearch();
-    } catch (error) {
-        console.error('Failed to refresh variables:', error);
-        isConnected = false;
-        setStatus('error', 'Connection lost');
-    }
+    ws.send(JSON.stringify({ type: 'get_variables' }));
 }
 
 /**
@@ -242,44 +243,24 @@ function renderVariables(vars) {
 }
 
 /**
- * Insert a variable into the Word document
+ * Insert a variable into the Word document via WebSocket
  */
-async function insertVariable(varName) {
+function insertVariable(varName) {
     const card = variablesListEl.querySelector(`[data-name="${varName}"]`);
     if (card) {
         card.classList.add('inserting');
+        // Remove inserting class after a short delay
+        setTimeout(() => card.classList.remove('inserting'), 500);
     }
 
-    try {
-        // Call the Tansu API to insert the variable
-        const response = await fetch(`${API_BASE}/insert`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                name: varName,
-                with_unit: false
-            })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Insert failed');
-        }
-
-        // Success - the variable was inserted by Tansu
-        console.log(`Inserted variable: ${varName}`);
-    } catch (error) {
-        console.error('Failed to insert variable:', error);
-
-        // Show error to user
-        alert(`Failed to insert variable: ${error.message}`);
-    } finally {
-        if (card) {
-            card.classList.remove('inserting');
-        }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'insert',
+            name: varName,
+            with_unit: false
+        }));
+    } else {
+        alert('Not connected to Tansu. Please ensure the desktop app is running.');
     }
 }
 
