@@ -18,12 +18,9 @@
   <!-- Support URL -->
   <SupportUrl DefaultValue="https://www.tansu.co/support"/>
 
-  <!-- AppDomains for localhost communication -->
+  <!-- AppDomains for Tansu desktop app communication -->
   <AppDomains>
-    <AppDomain>https://127.0.0.1:5050</AppDomain>
-    <AppDomain>https://localhost:5050</AppDomain>
-    <AppDomain>http://127.0.0.1:5050</AppDomain>
-    <AppDomain>http://localhost:5050</AppDomain>
+    <AppDomain>https://local.tansu.co:5050</AppDomain>
   </AppDomains>
 
   <!-- Host applications -->

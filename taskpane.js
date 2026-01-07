@@ -3,12 +3,9 @@
  * Communicates with Tansu desktop app via localhost API
  */
 
-// Try HTTPS first (for mixed-content compatibility), fall back to HTTP
-const API_ENDPOINTS = [
-    'https://127.0.0.1:5050',
-    'http://127.0.0.1:5050'
-];
-let API_BASE = API_ENDPOINTS[0];
+// Connect to Tansu desktop app via local.tansu.co (resolves to 127.0.0.1)
+// This allows HTTPS communication without mixed-content issues
+const API_BASE = 'https://local.tansu.co:5050';
 const STORAGE_KEY = 'tansu_welcome_shown';
 
 // State
@@ -113,36 +110,30 @@ function showMainApp() {
 
 /**
  * Check connection to Tansu and load variables
- * Tries multiple endpoints (HTTPS first, then HTTP) for compatibility
  */
 async function checkConnectionAndLoad() {
     setStatus('checking', 'Checking connection...');
     showLoading(true);
     hideError();
 
-    // Try each endpoint until one works
-    for (const endpoint of API_ENDPOINTS) {
-        try {
-            const response = await fetch(`${endpoint}/ping`, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
+    try {
+        const response = await fetch(`${API_BASE}/ping`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
 
-            if (response.ok) {
-                API_BASE = endpoint;
-                isConnected = true;
-                markWelcomeShown();
-                setStatus('connected', 'Connected to Tansu');
-                await loadVariables();
-                return;
-            }
-        } catch (error) {
-            // Try next endpoint
-            console.log(`Failed to connect to ${endpoint}, trying next...`);
+        if (response.ok) {
+            isConnected = true;
+            markWelcomeShown();
+            setStatus('connected', 'Connected to Tansu');
+            await loadVariables();
+            return;
         }
+    } catch (error) {
+        console.log('Failed to connect to Tansu:', error.message || error);
     }
 
-    // All endpoints failed
+    // Connection failed
     isConnected = false;
     setStatus('error', 'Not connected');
     showError();
