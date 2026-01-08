@@ -3,8 +3,8 @@
  * Communicates with Tansu desktop app via localhost API
  */
 
-// Connect to Tansu desktop app via secure WebSocket
-// local.tansu.co resolves to 127.0.0.1 via DNS, with valid SSL cert
+// API endpoints - local.tansu.co resolves to 127.0.0.1 via DNS, with valid SSL cert
+const API_BASE = 'https://local.tansu.co:5050';
 const WS_URL = 'wss://local.tansu.co:5050/ws';
 const STORAGE_KEY = 'tansu_welcome_shown';
 
@@ -12,6 +12,9 @@ const STORAGE_KEY = 'tansu_welcome_shown';
 let variables = [];
 let isConnected = false;
 let ws = null;
+let useHttpFallback = false;
+let wsConnectionAttempts = 0;
+const MAX_WS_ATTEMPTS = 2;
 
 // Debug logging to visible panel
 function debugLog(msg) {
@@ -58,7 +61,11 @@ function initializeAddin() {
 
     // Set up event listeners
     searchEl.addEventListener('input', handleSearch);
-    retryBtn.addEventListener('click', checkConnectionAndLoad);
+    retryBtn.addEventListener('click', () => {
+        wsConnectionAttempts = 0;
+        useHttpFallback = false;
+        checkConnectionAndLoad();
+    });
     skipWelcomeBtn.addEventListener('click', dismissWelcome);
 
     // Check if first run
@@ -123,26 +130,46 @@ function showMainApp() {
 }
 
 /**
- * Check connection to Tansu via WebSocket
+ * Check connection to Tansu - try WebSocket first, fall back to HTTP
  */
 function checkConnectionAndLoad() {
     setStatus('checking', 'Connecting...');
     showLoading(true);
     hideError();
 
-    // Close existing connection
+    if (useHttpFallback) {
+        debugLog('Using HTTP fallback mode');
+        loadVariablesViaHttp();
+        return;
+    }
+
+    // Close existing WebSocket connection
     if (ws) {
         ws.close();
         ws = null;
     }
 
+    wsConnectionAttempts++;
+    debugLog(`WebSocket attempt ${wsConnectionAttempts}/${MAX_WS_ATTEMPTS}`);
+
     try {
         debugLog('Connecting to ' + WS_URL);
         ws = new WebSocket(WS_URL);
 
+        // Set a timeout for WebSocket connection
+        const wsTimeout = setTimeout(() => {
+            if (ws && ws.readyState !== WebSocket.OPEN) {
+                debugLog('WebSocket timeout, trying HTTP fallback');
+                ws.close();
+                tryHttpFallback();
+            }
+        }, 3000);
+
         ws.onopen = () => {
-            debugLog('Connected!');
+            clearTimeout(wsTimeout);
+            debugLog('WebSocket connected!');
             isConnected = true;
+            wsConnectionAttempts = 0;
             markWelcomeShown();
             setStatus('connected', 'Connected to Tansu');
             ws.send(JSON.stringify({ type: 'get_variables' }));
@@ -167,19 +194,69 @@ function checkConnectionAndLoad() {
         };
 
         ws.onerror = (error) => {
-            debugLog('Error: ' + (error.message || 'Connection failed'));
+            clearTimeout(wsTimeout);
+            debugLog('WebSocket error: ' + (error.message || 'Connection failed'));
         };
 
         ws.onclose = (event) => {
-            debugLog('Closed: code=' + event.code + ' clean=' + event.wasClean);
-            isConnected = false;
-            setStatus('error', 'Not connected');
-            showError();
+            clearTimeout(wsTimeout);
+            debugLog('WebSocket closed: code=' + event.code + ' clean=' + event.wasClean);
+
+            if (!isConnected) {
+                // Connection never established, try fallback
+                tryHttpFallback();
+            } else {
+                // Was connected but got disconnected
+                isConnected = false;
+                setStatus('error', 'Disconnected');
+            }
             ws = null;
         };
 
     } catch (error) {
-        debugLog('Exception: ' + error.message);
+        debugLog('WebSocket exception: ' + error.message);
+        tryHttpFallback();
+    }
+}
+
+/**
+ * Try HTTP fallback after WebSocket fails
+ */
+function tryHttpFallback() {
+    if (wsConnectionAttempts >= MAX_WS_ATTEMPTS) {
+        debugLog('Switching to HTTP fallback mode');
+        useHttpFallback = true;
+        loadVariablesViaHttp();
+    } else {
+        // Try WebSocket again
+        setTimeout(checkConnectionAndLoad, 1000);
+    }
+}
+
+/**
+ * Load variables via HTTP fetch (fallback mode)
+ */
+async function loadVariablesViaHttp() {
+    try {
+        debugLog('Fetching variables via HTTP...');
+        const response = await fetch(`${API_BASE}/variables`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        debugLog('HTTP response: ' + JSON.stringify(data).substring(0, 50) + '...');
+
+        variables = data.variables || [];
+        isConnected = true;
+        markWelcomeShown();
+        setStatus('connected', 'Connected to Tansu');
+        renderVariables(variables);
+        showLoading(false);
+
+    } catch (error) {
+        debugLog('HTTP error: ' + error.message);
         isConnected = false;
         setStatus('error', 'Not connected');
         showError();
@@ -187,18 +264,14 @@ function checkConnectionAndLoad() {
 }
 
 /**
- * Load variables via WebSocket
- */
-function loadVariables() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'get_variables' }));
-    }
-}
-
-/**
- * Refresh variables via WebSocket
+ * Refresh variables
  */
 function refreshVariables() {
+    if (useHttpFallback) {
+        loadVariablesViaHttp();
+        return;
+    }
+
     if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
         checkConnectionAndLoad();
         return;
@@ -254,24 +327,33 @@ function renderVariables(vars) {
 }
 
 /**
- * Insert a variable into the Word document via WebSocket
+ * Insert a variable into the Word document
  */
-function insertVariable(varName) {
+async function insertVariable(varName) {
     const card = variablesListEl.querySelector(`[data-name="${varName}"]`);
     if (card) {
         card.classList.add('inserting');
-        // Remove inserting class after a short delay
         setTimeout(() => card.classList.remove('inserting'), 500);
     }
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-            type: 'insert',
-            name: varName,
-            with_unit: false
-        }));
-    } else {
-        alert('Not connected to Tansu. Please ensure the desktop app is running.');
+    // Find the variable to get its value
+    const variable = variables.find(v => v.name === varName);
+    if (!variable) {
+        alert('Variable not found');
+        return;
+    }
+
+    // Insert directly into Word using Office.js
+    try {
+        await Word.run(async (context) => {
+            const selection = context.document.getSelection();
+            selection.insertText(String(variable.value), Word.InsertLocation.replace);
+            await context.sync();
+            debugLog('Inserted: ' + varName + ' = ' + variable.value);
+        });
+    } catch (error) {
+        debugLog('Insert error: ' + error.message);
+        alert('Failed to insert variable: ' + error.message);
     }
 }
 
