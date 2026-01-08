@@ -16,6 +16,11 @@ let useHttpFallback = false;
 let wsConnectionAttempts = 0;
 const MAX_WS_ATTEMPTS = 2;
 
+// Platform detection (navigator.platform is deprecated but still works in Office add-ins)
+const isMac = (navigator.userAgentData?.platform === 'macOS') ||
+              navigator.platform?.toUpperCase().indexOf('MAC') >= 0 ||
+              navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+
 // Debug logging to visible panel
 function debugLog(msg) {
     console.log('[Tansu]', msg);
@@ -374,12 +379,40 @@ function showLoading(show) {
 }
 
 /**
- * Show error state
+ * Show error state - with Mac-specific messaging
  */
 function showError() {
     document.getElementById('variables-container').style.display = 'none';
     errorContainerEl.style.display = 'flex';
     showLoading(false);
+
+    // Show Mac-specific error message
+    if (isMac) {
+        const errorTitle = errorContainerEl.querySelector('h2');
+        const errorMsg = errorContainerEl.querySelector('p');
+        const retryBtn = document.getElementById('retry-btn');
+        const downloadSection = errorContainerEl.querySelector('.download-section');
+
+        if (errorTitle) {
+            errorTitle.textContent = 'Mac Requires Local Installation';
+        }
+        if (errorMsg) {
+            errorMsg.innerHTML = 'Due to macOS security restrictions, the online version of this add-in cannot connect to the Tansu desktop app.<br><br>Please use the <strong>built-in add-in</strong> that comes with Tansu for Mac.';
+        }
+        if (retryBtn) {
+            retryBtn.style.display = 'none';
+        }
+        if (downloadSection) {
+            downloadSection.innerHTML = `
+                <p style="margin-top: 16px;"><strong>How to use Tansu on Mac:</strong></p>
+                <ol style="text-align: left; margin: 12px 0; padding-left: 20px; font-size: 13px;">
+                    <li>Open the Tansu desktop app</li>
+                    <li>Go to <strong>Word Menu → Tools → Tansu Variables</strong></li>
+                </ol>
+                <a href="https://github.com/gtrad/Tansu-MVP/releases/latest" target="_blank" class="btn btn-secondary">Download Tansu for Mac</a>
+            `;
+        }
+    }
 }
 
 /**

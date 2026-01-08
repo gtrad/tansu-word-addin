@@ -9,7 +9,7 @@
   <ProviderName>Tansu</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Tansu Variables"/>
-  <Description DefaultValue="Insert tracked variables into your Word document. Sync values like prices, dates, and measurements across all your files. Requires companion Tansu desktop app."/>
+  <Description DefaultValue="Insert tracked variables into your Word document. Sync values like prices, dates, and measurements across all your files. Windows only. Requires companion Tansu desktop app."/>
 
   <!-- Icon URLs - hosted on GitHub Pages -->
   <IconUrl DefaultValue="https://gtrad.github.io/tansu-word-addin/assets/icon-32.png"/>
